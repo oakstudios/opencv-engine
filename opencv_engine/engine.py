@@ -63,6 +63,11 @@ class Engine(BaseEngine):
         imagefiledata = cv.CreateMatHeader(1, len(buffer), cv.CV_8UC1)
         cv.SetData(imagefiledata, buffer, len(buffer))
         img0 = cv.DecodeImageM(imagefiledata, cv.CV_LOAD_IMAGE_UNCHANGED)
+        
+        # Determine bit depth
+        depths = [cv.IPL_DEPTH_8U, cv.IPL_DEPTH_8S, cv.IPL_DEPTH_16U, cv.IPL_DEPTH_16S, cv.IPL_DEPTH_32S, cv.IPL_DEPTH_32F, cv.IPL_DEPTH_64F]
+        depth_int = img0.type % 8
+        self.depth = depths[depth_int]
 
         if FORMATS[self.extension] == 'JPEG':
             try:
@@ -83,14 +88,14 @@ class Engine(BaseEngine):
         pass
 
     def resize(self, width, height):
-        thumbnail = cv.CreateImage((int(round(width, 0)), int(round(height, 0))), 8, self.image.channels)
+        thumbnail = cv.CreateImage((int(round(width, 0)), int(round(height, 0))), self.depth, self.image.channels)
         cv.Resize(self.image, thumbnail, cv.CV_INTER_AREA)
         self.image = thumbnail
 
     def crop(self, left, top, right, bottom):
         new_width = right - left
         new_height = bottom - top
-        cropped = cv.CreateImage((new_width, new_height), 8, self.image.channels)
+        cropped = cv.CreateImage((new_width, new_height), self.depth, self.image.channels)
         src_region = cv.GetSubRect(self.image, (left, top, new_width, new_height))
         cv.Copy(src_region, cropped)
 
@@ -114,7 +119,7 @@ class Engine(BaseEngine):
 
         mapMatrix = cv.CreateMat(2, 3, cv.CV_64F)
         cv.GetRotationMatrix2D(center, degrees, 1.0, mapMatrix)
-        dst = cv.CreateImage(new_size, 8, img.channels)
+        dst = cv.CreateImage(new_size, self.depth, img.channels)
         cv.SetZero(dst)
         cv.WarpAffine(img, dst, mapMatrix)
         self.image = dst
@@ -170,7 +175,7 @@ class Engine(BaseEngine):
     def convert_to_grayscale(self):
         if self.image.channels >= 3:
             # FIXME: OpenCV does not support grayscale with alpha channel?
-            grayscaled = cv.CreateImage((self.image.width, self.image.height), 8, 1)
+            grayscaled = cv.CreateImage((self.image.width, self.image.height), self.depth, 1)
             cv.CvtColor(self.image, grayscaled, cv.CV_BGRA2GRAY)
             self.image = grayscaled
 
